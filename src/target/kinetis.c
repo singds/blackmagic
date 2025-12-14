@@ -159,6 +159,7 @@ bool kinetis_probe(target_s *const target)
 {
 	uint32_t sdid = target_mem32_read32(target, SIM_SDID);
 	uint32_t fcfg1 = target_mem32_read32(target, SIM_FCFG1);
+	DEBUG_INFO("Kinetis SDID=0x%08" PRIx32 ", FCFG1=0x%08" PRIx32 "\n", sdid, fcfg1);
 
 	switch (sdid >> 20U) {
 	case 0x161U:
@@ -403,6 +404,23 @@ bool kinetis_probe(target_s *const target)
 		/* FlexNVM = 512 KiB */
 		kl_s32k14_setup(target, 0x1ffe0000, 0x1f000, 0x00180000, 0x80000);
 		break;
+	case 0x132U: /* KE13Z */
+	{
+		uint8_t pfsize = (fcfg1 >> 24U) & 0x0fU;
+		size_t flash_size = 0;
+		if (pfsize == 0x05U) { /* 64 KB */
+			flash_size = 64U * 1024U;
+		} else if (pfsize == 0x07U) { /* 128 KB */
+			flash_size = 128U * 1024U;
+		}
+		if (flash_size == 0) {
+			DEBUG_ERROR("Unsupported KE13Z flash size encoding: 0x%02x\n", pfsize);
+			return false;
+		}
+		target->driver = "KE13Z";
+		kinetis_add_flash(target, 0x00000000U, flash_size, 2U * 1024U, 4);
+		break;
+	}
 	default:
 		return false;
 	}
